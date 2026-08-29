@@ -45,8 +45,9 @@ export async function zaiChat(
         body: JSON.stringify({
           model: opts.model ?? CHAT_MODEL,
           temperature: opts.temperature ?? 0.6,
-          // This model always "thinks" first; the budget must cover the hidden
-          // reasoning tokens or the answer comes back empty.
+          // Disable Qwen3 thinking/reasoning mode so the model answers directly
+          // and returns much faster.
+          enable_thinking: false,
           max_tokens: opts.maxTokens ?? 4000,
           messages,
         }),
