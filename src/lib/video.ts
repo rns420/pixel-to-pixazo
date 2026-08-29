@@ -299,6 +299,8 @@ export async function buildVideo(
       ";" +
       Array.from({ length: n }, (_, i) => `[c${i}]`).join("") +
       `concat=n=${n}:v=1:a=0[vout]`;
+    // remove any partial output from the failed xfade pass before re-encoding
+    await ff.deleteFile("out.mp4").catch(() => {});
     await encode(concat, "vout");
     const data = (await ff.readFile("out.mp4")) as Uint8Array;
     if (!data || data.length < 1000) throw e instanceof Error ? e : new Error(String(e));
