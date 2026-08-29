@@ -227,11 +227,11 @@ export async function buildVideo(
     const vig = 0.9 + hash(i, 17) * 0.5;
 
     chains.push(
-      `[${i}:v]scale=${W * 2}:${H * 2}:force_original_aspect_ratio=increase,` +
-        `crop=${W * 2}:${H * 2},setsar=1,` +
+      `[${i}:v]scale=${Math.round(W * SRC)}:${Math.round(H * SRC)}:force_original_aspect_ratio=increase,` +
+        `crop=${Math.round(W * SRC)}:${Math.round(H * SRC)},setsar=1,` +
         `${MOVES[mi]!(frames)}:d=1:s=${W}x${H}:fps=${FPS},` +
         `${grade.filter},vignette=PI/${vig.toFixed(2)},` +
-        `unsharp=5:5:0.6:5:5:0.0,format=yuv420p[v${i}]`,
+        `format=yuv420p[v${i}]`,
     );
   }
 
