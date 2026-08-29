@@ -6,9 +6,9 @@ import wasmAsset from "../assets/ffmpeg-core.wasm.asset.json";
 
 const CORE_JS = "/ffmpeg/ffmpeg-core.esm.js";
 
-const W = 960;
-const H = 540;
-const FPS = 20;
+const W = 1920;
+const H = 1080;
+const FPS = 30;
 /** Source scale factor used for the Ken Burns moves (keeps pixels to chew on). */
 const SRC = 1.4;
 /** Cross-fade length between two shots (seconds). */
@@ -224,13 +224,12 @@ export async function buildVideo(
     lastMove = mi;
 
     const grade = gradeFor(shots[i]!, i);
-    const vig = 0.9 + hash(i, 17) * 0.5;
 
     chains.push(
       `[${i}:v]scale=${Math.round(W * SRC)}:${Math.round(H * SRC)}:force_original_aspect_ratio=increase,` +
         `crop=${Math.round(W * SRC)}:${Math.round(H * SRC)},setsar=1,` +
         `${MOVES[mi]!(frames)}:d=1:s=${W}x${H}:fps=${FPS},` +
-        `${grade.filter},vignette=PI/${vig.toFixed(2)},` +
+        `${grade.filter},` +
         `format=yuv420p[v${i}]`,
     );
   }
