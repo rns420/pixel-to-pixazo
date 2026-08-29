@@ -6,9 +6,11 @@ import wasmAsset from "../assets/ffmpeg-core.wasm.asset.json";
 
 const CORE_JS = "/ffmpeg/ffmpeg-core.esm.js";
 
-const W = 1280;
-const H = 720;
-const FPS = 24;
+const W = 960;
+const H = 540;
+const FPS = 20;
+/** Source scale factor used for the Ken Burns moves (keeps pixels to chew on). */
+const SRC = 1.4;
 /** Cross-fade length between two shots (seconds). */
 const XF = 0.7;
 
