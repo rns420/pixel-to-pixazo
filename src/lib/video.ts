@@ -254,11 +254,21 @@ export async function buildVideo(
 
   const filter = chains.join(";");
 
-  onProgress(52, "Encoding video…");
-  ff.on("progress", ({ progress }) => {
-    const p = 52 + Math.min(46, Math.round(progress * 46));
-    onProgress(p, "Encoding video…");
-  });
+  const totalFrames = Math.max(
+    1,
+    Math.round((durations.reduce((a, b) => a + b, 0) + XF) * FPS),
+  );
+
+  onProgress(52, "Encoding video… 0%");
+  // ffmpeg.wasm's `progress` event is unreliable with filter_complex, so drive
+  // the bar off the encoder's own `frame=` log line — it never looks stuck.
+  const onFfLog = ({ message }: { message: string }) => {
+    const m = /frame=\s*(\d+)/.exec(message);
+    if (!m) return;
+    const done = Math.min(1, Number(m[1]) / totalFrames);
+    onProgress(52 + Math.round(done * 46), `Encoding video… ${Math.round(done * 100)}%`);
+  };
+  ff.on("log", onFfLog);
 
   const encode = async (fc: string, label: string) => {
     await ff.exec([
@@ -274,14 +284,17 @@ export async function buildVideo(
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      "ultrafast",
+      "-tune",
+      "fastdecode",
       "-crf",
-      "23",
+      "26",
       "-movflags",
       "+faststart",
       "out.mp4",
     ]);
   };
+
 
   try {
     await encode(filter, outLabel);
