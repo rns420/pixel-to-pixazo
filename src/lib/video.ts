@@ -171,10 +171,23 @@ export async function buildVideo(
   onProgress(2, "Loading video engine…");
   const ff = await getFFmpeg();
 
+  // Clear any files left behind by a previous run — ffmpeg.wasm's in-memory
+  // FS persists for the life of the instance and writeFile onto an existing
+  // path throws "ErrnoError: FS error".
+  try {
+    for (const entry of await ff.listDir("/")) {
+      if (entry.isDir) continue;
+      await ff.deleteFile(entry.name).catch(() => {});
+    }
+  } catch {
+    /* fresh instance */
+  }
+
   const names: string[] = [];
   for (let i = 0; i < shots.length; i++) {
     const s = shots[i]!;
     const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(s.url)}`);
+    if (!res.ok) throw new Error(`Failed to fetch shot ${i + 1} image (${res.status})`);
     const buf = new Uint8Array(await res.arrayBuffer());
     const name = `img${String(i).padStart(5, "0")}.png`;
     await ff.writeFile(name, buf);
@@ -286,6 +299,8 @@ export async function buildVideo(
       ";" +
       Array.from({ length: n }, (_, i) => `[c${i}]`).join("") +
       `concat=n=${n}:v=1:a=0[vout]`;
+    // remove any partial output from the failed xfade pass before re-encoding
+    await ff.deleteFile("out.mp4").catch(() => {});
     await encode(concat, "vout");
     const data = (await ff.readFile("out.mp4")) as Uint8Array;
     if (!data || data.length < 1000) throw e instanceof Error ? e : new Error(String(e));
