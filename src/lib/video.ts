@@ -6,9 +6,11 @@ import wasmAsset from "../assets/ffmpeg-core.wasm.asset.json";
 
 const CORE_JS = "/ffmpeg/ffmpeg-core.esm.js";
 
-const W = 1280;
-const H = 720;
-const FPS = 24;
+const W = 960;
+const H = 540;
+const FPS = 20;
+/** Source scale factor used for the Ken Burns moves (keeps pixels to chew on). */
+const SRC = 1.4;
 /** Cross-fade length between two shots (seconds). */
 const XF = 0.7;
 
@@ -225,11 +227,11 @@ export async function buildVideo(
     const vig = 0.9 + hash(i, 17) * 0.5;
 
     chains.push(
-      `[${i}:v]scale=${W * 2}:${H * 2}:force_original_aspect_ratio=increase,` +
-        `crop=${W * 2}:${H * 2},setsar=1,` +
+      `[${i}:v]scale=${Math.round(W * SRC)}:${Math.round(H * SRC)}:force_original_aspect_ratio=increase,` +
+        `crop=${Math.round(W * SRC)}:${Math.round(H * SRC)},setsar=1,` +
         `${MOVES[mi]!(frames)}:d=1:s=${W}x${H}:fps=${FPS},` +
         `${grade.filter},vignette=PI/${vig.toFixed(2)},` +
-        `unsharp=5:5:0.6:5:5:0.0,format=yuv420p[v${i}]`,
+        `format=yuv420p[v${i}]`,
     );
   }
 
@@ -252,11 +254,21 @@ export async function buildVideo(
 
   const filter = chains.join(";");
 
-  onProgress(52, "Encoding video…");
-  ff.on("progress", ({ progress }) => {
-    const p = 52 + Math.min(46, Math.round(progress * 46));
-    onProgress(p, "Encoding video…");
-  });
+  const totalFrames = Math.max(
+    1,
+    Math.round((durations.reduce((a, b) => a + b, 0) + XF) * FPS),
+  );
+
+  onProgress(52, "Encoding video… 0%");
+  // ffmpeg.wasm's `progress` event is unreliable with filter_complex, so drive
+  // the bar off the encoder's own `frame=` log line — it never looks stuck.
+  const onFfLog = ({ message }: { message: string }) => {
+    const m = /frame=\s*(\d+)/.exec(message);
+    if (!m) return;
+    const done = Math.min(1, Number(m[1]) / totalFrames);
+    onProgress(52 + Math.round(done * 46), `Encoding video… ${Math.round(done * 100)}%`);
+  };
+  ff.on("log", onFfLog);
 
   const encode = async (fc: string, label: string) => {
     await ff.exec([
@@ -272,14 +284,17 @@ export async function buildVideo(
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      "ultrafast",
+      "-tune",
+      "fastdecode",
       "-crf",
-      "23",
+      "26",
       "-movflags",
       "+faststart",
       "out.mp4",
     ]);
   };
+
 
   try {
     await encode(filter, outLabel);
